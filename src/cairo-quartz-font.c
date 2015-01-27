@@ -81,8 +81,9 @@ static void (*CGFontGetGlyphsForUnicharsPtr) (CGFontRef, const UniChar[], const 
 static void (*CGContextSetAllowsFontSmoothingPtr) (CGContextRef, bool) = NULL;
 static bool (*CGContextGetAllowsFontSmoothingPtr) (CGContextRef) = NULL;
 
-/* Not public in the least bit */
-static CGPathRef (*CGFontGetGlyphPathPtr) (CGFontRef fontRef, CGAffineTransform *textTransform, int unknown, CGGlyph glyph) = NULL;
+static CTFontRef (*CTFontCreateWithGraphicsFontPtr) (CGFontRef fontRef,  CGFloat size, const CGAffineTransform *matrix, CTFontDescriptorRef attributes) = NULL;
+static CGPathRef (*CTFontCreatePathForGlyphPtr) (CTFontRef fontRef, CGGlyph glyph, CGAffineTransform *textTransform) = NULL;
+
 
 /* CGFontGetHMetrics isn't public, but the other functions are public/present in 10.5 */
 typedef struct {
@@ -95,8 +96,6 @@ static int (*CGFontGetAscentPtr) (CGFontRef fontRef) = NULL;
 static int (*CGFontGetDescentPtr) (CGFontRef fontRef) = NULL;
 static int (*CGFontGetLeadingPtr) (CGFontRef fontRef) = NULL;
 
-/* Not public anymore in 64-bits nor in 10.7 */
-static ATSFontRef (*FMGetATSFontRefFromFontPtr) (FMFont iFont) = NULL;
 
 static cairo_bool_t _cairo_quartz_font_symbol_lookup_done = FALSE;
 static cairo_bool_t _cairo_quartz_font_symbols_present = FALSE;
@@ -127,7 +126,10 @@ quartz_font_ensure_symbols(void)
     /* These have the same name in 10.4 and 10.5 */
     CGFontGetUnitsPerEmPtr = dlsym(RTLD_DEFAULT, "CGFontGetUnitsPerEm");
     CGFontGetGlyphAdvancesPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphAdvances");
-    CGFontGetGlyphPathPtr = dlsym(RTLD_DEFAULT, "CGFontGetGlyphPath");
+    CTFontCreatePathForGlyphPtr = dlsym(RTLD_DEFAULT, "CTFontCreatePathForGlyph");
+    CTFontCreateWithGraphicsFontPtr = dlsym(RTLD_DEFAULT, "CTFontCreateWithGraphicsFont");
+
+
 
     CGFontGetHMetricsPtr = dlsym(RTLD_DEFAULT, "CGFontGetHMetrics");
     CGFontGetAscentPtr = dlsym(RTLD_DEFAULT, "CGFontGetAscent");
@@ -137,14 +139,34 @@ quartz_font_ensure_symbols(void)
     CGContextGetAllowsFontSmoothingPtr = dlsym(RTLD_DEFAULT, "CGContextGetAllowsFontSmoothing");
     CGContextSetAllowsFontSmoothingPtr = dlsym(RTLD_DEFAULT, "CGContextSetAllowsFontSmoothing");
 
-    FMGetATSFontRefFromFontPtr = dlsym(RTLD_DEFAULT, "FMGetATSFontRefFromFont");
+    CGFontCopyTableForTagPtr = dlsym(RTLD_DEFAULT, "CGFontCopyTableForTag");
+
+//-------
+printf("CGFontCreateWithFontNamePtr: %x\n", CGFontCreateWithFontNamePtr);
+printf("CGFontCreateWithNamePtr    : %x\n", CGFontCreateWithNamePtr);
+printf("CGFontGetGlyphBBoxesPtr    : %x\n", CGFontGetGlyphBBoxesPtr);
+printf("CGFontGetGlyphsForUnicharsPtr: %x\n", CGFontGetGlyphsForUnicharsPtr);
+printf("CGFontGetUnitsPerEmPtr     : %x\n", CGFontGetUnitsPerEmPtr);
+printf("CGFontGetGlyphAdvancesPtr  : %x\n", CGFontGetGlyphAdvancesPtr);
+printf("CTFontCreatePathForGlyphPtr: %x\n", CTFontCreatePathForGlyphPtr);
+printf("CTFontCreateWithGraphicsFontPtr: %x\n", CTFontCreateWithGraphicsFontPtr);
+
+printf("CGFontGetHMetricsPtr       : %x\n", CGFontGetHMetricsPtr);
+printf("CGFontGetAscentPtr         : %x\n", CGFontGetAscentPtr);
+printf("CGFontGetDescentPtr        : %x\n", CGFontGetDescentPtr);
+printf("CGFontGetLeadingPtr        : %x\n", CGFontGetLeadingPtr);
+//------
+
+
+
 
     if ((CGFontCreateWithFontNamePtr || CGFontCreateWithNamePtr) &&
 	CGFontGetGlyphBBoxesPtr &&
 	CGFontGetGlyphsForUnicharsPtr &&
 	CGFontGetUnitsPerEmPtr &&
 	CGFontGetGlyphAdvancesPtr &&
-	CGFontGetGlyphPathPtr &&
+    CTFontCreateWithGraphicsFontPtr &&
+    CTFontCreatePathForGlyphPtr &&
 	(CGFontGetHMetricsPtr || (CGFontGetAscentPtr && CGFontGetDescentPtr && CGFontGetLeadingPtr)))
 	_cairo_quartz_font_symbols_present = TRUE;
 
@@ -532,7 +554,7 @@ _cairo_quartz_path_apply_func (void *info, const CGPathElement *el)
 						 _cairo_fixed_from_double(el->points[1].y),
 						 _cairo_fixed_from_double(el->points[2].x),
 						 _cairo_fixed_from_double(el->points[2].y));
-	    assert(!status);	    
+	    assert(!status);
 	    break;
 	case kCGPathElementCloseSubpath:
 	    status = _cairo_path_fixed_close_path (path);
@@ -549,6 +571,7 @@ _cairo_quartz_init_glyph_path (cairo_quartz_scaled_font_t *font,
     CGGlyph glyph = _cairo_quartz_scaled_glyph_index (scaled_glyph);
     CGAffineTransform textMatrix;
     CGPathRef glyphPath;
+    CTFontRef ctFont;
     cairo_path_fixed_t *path;
 
     if (glyph == INVALID_GLYPH) {
@@ -563,7 +586,10 @@ _cairo_quartz_init_glyph_path (cairo_quartz_scaled_font_t *font,
 					-font->base.scale.yy,
 					0, 0);
 
-    glyphPath = CGFontGetGlyphPathPtr (font_face->cgFont, &textMatrix, 0, glyph);
+
+    ctFont = CTFontCreateWithGraphicsFontPtr(font_face->cgFont, 0, NULL, NULL);
+    glyphPath = CTFontCreatePathForGlyphPtr(ctFont, glyph, &textMatrix);
+
     if (!glyphPath)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
@@ -810,51 +836,4 @@ _cairo_quartz_scaled_font_get_cg_font_ref (cairo_scaled_font_t *abstract_font)
     cairo_quartz_font_face_t *ffont = _cairo_quartz_scaled_to_face(abstract_font);
 
     return ffont->cgFont;
-}
-
-/*
- * compat with old ATSUI backend
- */
-
-/**
- * cairo_quartz_font_face_create_for_atsu_font_id:
- * @font_id: an ATSUFontID for the font.
- *
- * Creates a new font for the Quartz font backend based on an
- * #ATSUFontID. This font can then be used with
- * cairo_set_font_face() or cairo_scaled_font_create().
- *
- * Return value: a newly created #cairo_font_face_t. Free with
- *  cairo_font_face_destroy() when you are done using it.
- *
- * Since: 1.6
- **/
-cairo_font_face_t *
-cairo_quartz_font_face_create_for_atsu_font_id (ATSUFontID font_id)
-{
-    quartz_font_ensure_symbols();
-
-    if (FMGetATSFontRefFromFontPtr != NULL) {
-	ATSFontRef atsFont = FMGetATSFontRefFromFontPtr (font_id);
-	CGFontRef cgFont = CGFontCreateWithPlatformFont (&atsFont);
-	cairo_font_face_t *ff;
-
-	ff = cairo_quartz_font_face_create_for_cgfont (cgFont);
-
-	CGFontRelease (cgFont);
-
-	return ff;
-    } else {
-	_cairo_error_throw (CAIRO_STATUS_NO_MEMORY);
-	return (cairo_font_face_t *)&_cairo_font_face_nil;
-    }
-}
-
-/* This is the old name for the above function, exported for compat purposes */
-cairo_font_face_t *cairo_atsui_font_face_create_for_atsu_font_id (ATSUFontID font_id);
-
-cairo_font_face_t *
-cairo_atsui_font_face_create_for_atsu_font_id (ATSUFontID font_id)
-{
-    return cairo_quartz_font_face_create_for_atsu_font_id (font_id);
 }

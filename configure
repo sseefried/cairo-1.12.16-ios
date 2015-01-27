@@ -23646,27 +23646,17 @@ quartz_NONPKGCONFIG_EXTRA_LIBS="$ac_env_quartz_NONPKGCONFIG_EXTRA_LIBS_value"
 
 
 
-    ac_fn_c_check_header_mongrel "$LINENO" "ApplicationServices/ApplicationServices.h" "ac_cv_header_ApplicationServices_ApplicationServices_h" "$ac_includes_default"
-if test "x$ac_cv_header_ApplicationServices_ApplicationServices_h" = xyes; then :
+  #  quartz_LIBS="-Xlinker -framework -Xlinker QuartzCore -Xlinker -framework -Xlinker CoreGraphics -Xlinker -framework -Xlinker CoreFoundation -Xlinker -framework -Xlinker CoreText"
+  quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics -Xlinker -framework -Xlinker CoreFoundation -Xlinker -framework -Xlinker CoreText"
 
-else
-  use_quartz="no (requires ApplicationServices framework)"
-fi
-
-
-  if test "x$use_quartz" != "xyes" ; then
-        ac_fn_c_check_header_mongrel "$LINENO" "CoreGraphics/CoreGraphics.h" "ac_cv_header_CoreGraphics_CoreGraphics_h" "$ac_includes_default"
-if test "x$ac_cv_header_CoreGraphics_CoreGraphics_h" = xyes; then :
-
-else
-  use_quartz="no (requires CoreGraphics framework)"
-fi
-
-
-    quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics"
-  else
-    quartz_LIBS="-Xlinker -framework -Xlinker ApplicationServices"
-  fi
+#  AC_CHECK_HEADER(ApplicationServices/ApplicationServices.h, , [use_quartz="no (requires ApplicationServices framework)"])
+#  if test "x$use_quartz" != "xyes" ; then
+#    dnl check for CoreGraphics as a separate framework
+#    AC_CHECK_HEADER(CoreGraphics/CoreGraphics.h, , [use_quartz="no (requires CoreGraphics framework)"])
+#    quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics"
+#  else
+#    quartz_LIBS="-Xlinker -framework -Xlinker QuartzCore"
+#  fi
 
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether cairo's Quartz surface backend feature could be enabled" >&5

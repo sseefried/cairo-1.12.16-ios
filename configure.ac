@@ -196,14 +196,17 @@ dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(quartz, Quartz, auto, [
   dnl There is no pkgconfig for quartz; lets do a header check
-  AC_CHECK_HEADER(ApplicationServices/ApplicationServices.h, , [use_quartz="no (requires ApplicationServices framework)"])
-  if test "x$use_quartz" != "xyes" ; then
-    dnl check for CoreGraphics as a separate framework
-    AC_CHECK_HEADER(CoreGraphics/CoreGraphics.h, , [use_quartz="no (requires CoreGraphics framework)"])
-    quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics"
-  else
-    quartz_LIBS="-Xlinker -framework -Xlinker ApplicationServices"
-  fi
+#  quartz_LIBS="-Xlinker -framework -Xlinker QuartzCore -Xlinker -framework -Xlinker CoreGraphics -Xlinker -framework -Xlinker CoreFoundation -Xlinker -framework -Xlinker CoreText"
+  quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics -Xlinker -framework -Xlinker CoreFoundation -Xlinker -framework -Xlinker CoreText"
+
+#  AC_CHECK_HEADER(ApplicationServices/ApplicationServices.h, , [use_quartz="no (requires ApplicationServices framework)"])
+#  if test "x$use_quartz" != "xyes" ; then
+#    dnl check for CoreGraphics as a separate framework
+#    AC_CHECK_HEADER(CoreGraphics/CoreGraphics.h, , [use_quartz="no (requires CoreGraphics framework)"])
+#    quartz_LIBS="-Xlinker -framework -Xlinker CoreGraphics"
+#  else
+#    quartz_LIBS="-Xlinker -framework -Xlinker QuartzCore"
+#  fi
 ])
 
 CAIRO_ENABLE_FONT_BACKEND(quartz_font, Quartz, auto, [
@@ -334,11 +337,11 @@ CAIRO_ENABLE_FUNCTIONS(png, PNG, yes, [
     use_png=yes
   fi
 
-  if test "x$use_png" = "xyes" ; then 
+  if test "x$use_png" = "xyes" ; then
     PKG_CHECK_MODULES(png, $png_REQUIRES, , : )
   else
     AC_MSG_WARN([Could not find libpng in the pkg-config search path])
-  fi    
+  fi
 ])
 
 dnl ===========================================================================
@@ -493,11 +496,11 @@ CAIRO_ENABLE_FONT_BACKEND(ft, FreeType, auto, [
     PKG_CHECK_MODULES(FREETYPE, freetype2 >= $FREETYPE_MIN_VERSION,
                       [freetype_pkgconfig=yes],
 		      [freetype_pkgconfig=no])
-  
+
     if test "x$freetype_pkgconfig" = "xyes"; then
       ft_REQUIRES="freetype2 >= $FREETYPE_MIN_VERSION $ft_REQUIRES"
     else
-  
+
       if test -z "$FREETYPE_CONFIG"; then
         AC_PATH_PROG(FREETYPE_CONFIG, freetype-config, no)
       fi
