@@ -1,3 +1,2 @@
-source $HOME/ghc-ios/ghc-ios-scripts/configure-setup.sh
-$CONFIGURE_CMD \
-  --disable-ft --disable-fc --disable-xlib --enable-quartz
+$IOS_I386_CONFIGURE_CMD \
+  --enable-ft --disable-fc --disable-xlib --disable-quartz
